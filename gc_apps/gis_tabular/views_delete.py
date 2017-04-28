@@ -13,9 +13,8 @@ from django.conf import settings
 from gc_apps.geo_utils.msg_util import msg, msgt
 from gc_apps.geo_utils.view_util import get_common_lookup
 from gc_apps.geo_utils.geoconnect_step_names import PANEL_TITLE_DELETE_MAP,\
-    PANEL_TITLE_REMAP, GEOCONNECT_STEP_KEY, STEP1_EXAMINE
+    PANEL_TITLE_REMAP
 from gc_apps.gis_tabular.forms_delete import DeleteMapForm
-from gc_apps.gis_tabular.forms import SELECT_LABEL
 from gc_apps.gis_tabular.models import TabularFileInfo
 from gc_apps.gis_tabular.tab_services import get_tabular_file_from_dv_api_info, add_worldmap_layerinfo_if_exists
 from gc_apps.dv_notify.metadata_updater import MetadataUpdater
@@ -24,22 +23,6 @@ from gc_apps.geo_utils.message_helper_json import MessageHelperJSON
 from gc_apps.gis_shapefiles.initial_request_helper import InitialRequestHelper
 
 logger = logging.getLogger(__name__)
-
-def view_formatted_error_page(request, error_type, err_msg=None):
-    """Show an error page"""
-
-    d = get_common_lookup(request)
-    d['page_title'] = 'Examine Shapefile'
-    d['WORLDMAP_SERVER_URL'] = settings.WORLDMAP_SERVER_URL
-    d[GEOCONNECT_STEP_KEY] = STEP1_EXAMINE
-
-    d['Err_Found'] = True
-    if error_type is not None:
-        d[error_type] = True
-    d['Dataverse_Connect_Err_Msg'] = err_msg
-    d['SELECT_LABEL'] = SELECT_LABEL
-
-    return render(request, 'shapefiles/main_outline_shp.html', d)
 
 def view_delete_tabular_map(request):
     """
