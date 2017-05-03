@@ -18,7 +18,7 @@ from gc_apps.gis_tabular.forms_delete import DeleteMapForm
 from gc_apps.gis_tabular.models import TabularFileInfo
 from gc_apps.gis_tabular.tab_services import get_tabular_file_from_dv_api_info, add_worldmap_layerinfo_if_exists
 from gc_apps.dv_notify.metadata_updater import MetadataUpdater
-from gc_apps.worldmap_connect.dataverse_layer_services import delete_map_layer
+from gc_apps.worldmap_connect.dataverse_layer_services import delete_worldmap_tablejoin, get_layer_info_using_dv_info, delete_map_layer
 from gc_apps.geo_utils.message_helper_json import MessageHelperJSON
 from gc_apps.gis_shapefiles.initial_request_helper import InitialRequestHelper
 
@@ -116,12 +116,20 @@ def view_delete_tabular_map_no_ui(request, dataverse_token):
     (1) Check incoming url for a callback key 'cb'
         and use the callback url to retrieve the DataverseInfo via a POST
         (this is copied directly from the workflow of the "map-it" method)
-    (2) If the Datafile info looks good, download and process the datafile
+
+        OK, the whole process has been royally simplified! We are essentially 
+        dropping the previously performed steps 2-4. It is in fact possible to 
+        make a WorldMap API delete layer call *by the datafile_id and the 
+        dataverse installation name*. And we already have these in the dict 
+        that we received from following the callback URL. 
+    (2) [SKIP] If the Datafile info looks good, download and process the datafile
         (yes, we do have to actually download the file, even if we are merely deleting a map layer... 
         unless I'm missing something)
-    (3) If that worked, look up TabularInfo for this file, using the md5 produced in step (2)
-    (4) Look up MapLayerInfo by the TabularInfo produced in step (3)
-    (5) If found, try deleting the map layer on the WorldMap side
+    (3) [SKIP] If that worked, look up TabularInfo for this file, using the md5 produced in step (2)
+    (4) [SKIP] Look up MapLayerInfo by the TabularInfo produced in step (3)
+    (5) Try deleting the map layer on the WorldMap side
+        (a new call has been added to the layer_services, that takes a dict, containing 
+        the datafile_id and dataverse_installation_name
     (6) And if that worked too, delete it locally, in GeoConnect.
     (7) Return 200 and a success message.
     """
@@ -143,32 +151,33 @@ def view_delete_tabular_map_no_ui(request, dataverse_token):
         return HttpResponse(MessageHelperJSON.get_json_fail_msg("Precondition failed: Tabular file is not restricted"), status=412)
 
     # (2) If the Datafile info looks good, download and process the datafile
-    success, response_msg = get_tabular_file_from_dv_api_info(dataverse_token, request_helper.dv_data_dict)
+    #success, response_msg = get_tabular_file_from_dv_api_info(dataverse_token, request_helper.dv_data_dict)
 
-    if not success:
-        return HttpResponse(MessageHelperJSON.get_json_fail_msg("Failed to download and process the tabular file from the Dataverse. Error:" + response_msg.err_msg), status=412)
+    #if not success:
+    #    return HttpResponse(MessageHelperJSON.get_json_fail_msg("Failed to download and process the tabular file from the Dataverse. Error:" + response_msg.err_msg), status=412)
 
-    tab_file_md5 = response_msg
+    #tab_file_md5 = response_msg
 
     # (3) retrieve tabular file info, by md5:
 
-    try:
-        tabular_info = TabularFileInfo.objects.get(md5=tab_file_md5)
-    except TabularFileInfo.DoesNotExist:
-        raise Http404('No TabularFileInfo for md5: %s' % tab_file_md5)
+    #try:
+    #    tabular_info = TabularFileInfo.objects.get(md5=tab_file_md5)
+    #except TabularFileInfo.DoesNotExist:
+    #    raise Http404('No TabularFileInfo for md5: %s' % tab_file_md5)
 
     # (4) Is there a WorldMap layer associated with this tabular_info?
-    if not add_worldmap_layerinfo_if_exists(tabular_info):
-        raise Http404('No WorldMap layer info found for this TabularFileInfo (md5: %s)' % tab_file_md5)
+    #if not add_worldmap_layerinfo_if_exists(tabular_info):
+    #    raise Http404('No WorldMap layer info found for this TabularFileInfo (md5: %s)' % tab_file_md5)
 
-    worldmap_layer_info = tabular_info.get_worldmap_info()
-    if not worldmap_layer_info:
-        return HttpResponse(MessageHelperJSON.get_json_fail_msg("Failed to retrieve worldmap info for this md5 (" + tab_file_md5+")"), status=412)
+    #worldmap_layer_info = tabular_info.get_worldmap_info()
+    #if not worldmap_layer_info:
+    #    return HttpResponse(MessageHelperJSON.get_json_fail_msg("Failed to retrieve worldmap info for this md5 (" + tab_file_md5+")"), status=412)
 
-    gis_data_info = worldmap_layer_info.get_gis_data_info()
+    #gis_data_info = worldmap_layer_info.get_gis_data_info()
 
     # (5) ok, let's try and delete it on the worldmap side:
-    (success, err_msg) = delete_map_layer(gis_data_info, worldmap_layer_info)
+    #(success, err_msg) = delete_map_layer(gis_data_info, worldmap_layer_info)
+    (success, err_msg) = delete_map_layer_by_cb_dict(request_helper.dv_data_dict)
     if success is False:
         logger.error("Failed to delete WORLDMAP layer: %s", err_msg)
         return HttpResponse(MessageHelperJSON.get_json_fail_msg("Failed to delete WorldMap layer: "+err_msg), status=503)

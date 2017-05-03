@@ -39,6 +39,50 @@ Functions that interact with the WorldMap API to:
 LOGGER = logging.getLogger(__name__)
 
 
+def delete_map_layer_by_cb_dict(dict):
+    """
+    Delete a Layer from the WorldMap, using the WorldMap API
+
+    returns (True, None)
+        or (False, 'error message of some type')
+    """
+
+    print ('DELETE_LAYER_API_PATH: %s' % DELETE_LAYER_API_PATH)
+    print ("data_params: %s" % data_params)
+    try:
+        r = requests.post(DELETE_LAYER_API_PATH\
+                        , data=dict\
+                        , auth=settings.WORLDMAP_ACCOUNT_AUTH\
+                        , timeout=settings.WORLDMAP_SHORT_TIMEOUT)
+    except requests.exceptions.ConnectionError as exception_obj:
+
+        err_msg = ('Failed to retrieve data from the WorldMap.'
+                   '<p><b>Details for administrator:</b>'
+                   ' Could not contact the WorldMap'
+                   ' server: {0}</p>').format(DELETE_LAYER_API_PATH)
+
+        LOGGER.error(err_msg + '\nConnectionError:' + exception_obj.message)
+
+        return (False, err_msg)
+
+    print (r.text)
+    print (r.status_code)
+
+    #--------------------------------------
+    # Check Response
+    #--------------------------------------
+    if r.status_code == 200:
+        #response_dict = r.json()
+        return (True, None)
+
+    #--------------------------------------
+    # Response doesn't look good
+    #--------------------------------------
+    err_msg = "Status code: %s\nError: %s" % (r.status_code, r.text)
+    LOGGER.error(err_msg)
+
+    return (False, err_msg)
+
 def delete_map_layer(gis_data_info, worldmap_layer_info):
     """
     Delete a Layer from the WorldMap, using the WorldMap API
@@ -131,6 +175,48 @@ def delete_worldmap_tablejoin(worldmap_layer_info):
     if tablejoin_id is None:
         return (False, 'Failed to find the TableJoin id.')
 
+    delete_api_path = '%s%s' % (DELETE_TABLEJOIN, tablejoin_id)
+    print ('delete_api_path: %s' % delete_api_path)
+
+    try:
+        r = requests.post(delete_api_path\
+                        , auth=settings.WORLDMAP_ACCOUNT_AUTH\
+                        , timeout=settings.WORLDMAP_SHORT_TIMEOUT)
+    except requests.exceptions.ConnectionError as exception_obj:
+
+        err_msg = """Failed to delete the map.
+                    <p><b>Details for administrator:</b> Could not contact the
+                    WorldMap server: %s</p>"""\
+                                % (delete_api_pat)
+        LOGGER.error('ConnectionError during delete: %s', exception_obj.message)
+        LOGGER.error('delete_api_path: %s', delete_api_path)
+        return (False, err_msg)
+
+    print (r.text)
+    print (r.status_code)
+
+    #--------------------------------------
+    # Check Response
+    #--------------------------------------
+    if r.status_code == 200:
+        #response_dict = r.json()
+        return (True, None)
+    elif r.status_code == 404:
+        # TableJoin no longer exists
+        return (True, None)
+
+    #--------------------------------------
+    # Response doesn't look good
+    #--------------------------------------
+    err_msg = "Status code: %s\nError: %s" % (r.status_code, r.text)
+    LOGGER.error(err_msg)
+
+    return (False, err_msg)
+
+def delete_worldmap_tablejoin_by_id(tablejoin_id):
+    """
+    Use the WorldMap API to delete a TableJoin object, by its id
+    """
     delete_api_path = '%s%s' % (DELETE_TABLEJOIN, tablejoin_id)
     print ('delete_api_path: %s' % delete_api_path)
 
